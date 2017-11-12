@@ -1,0 +1,111 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Aug 19 20:43:47 2017
+
+@author: Administrator
+"""
+
+from bs4 import BeautifulSoup
+import requests
+import json
+import time
+import random
+import re
+import sys
+
+reload(sys)
+sys.setdefaultencoding('utf-8')
+a = 0
+filename = 'primary_Q_href_5.json'
+with open('C:/' + filename ,'r') as f:
+     for line in f:
+         #读取一次url休眠0-0.5秒
+         time.sleep(random.randrange(0,1))
+         
+         #数据转化
+         question_data = {}
+         question_data = json.loads(line)
+         
+         try:
+             url = 'http://www.mofangge.com' + question_data['url']
+             cookies = {'bdshare_firstime':'1502890848308', 'pgv_pvi':'4278362112','ASP.NET_SessionId':'nlxb0fxm15clqjv1wswwxc4g', 'pgv_si':'s7938435072', 'mfg_memberid':'79584748',  'mfg_membersgin':'2E2F7CD0B6A252BA211003546A4E554664C4CA7A1101C87E6A6E60241174B47BC48902FE5AB85A11173F719A3C8741AFA2EBF25A3F86E1683CC87B0552044A76346DB215E406A61B789EBE91AE07FBD5', 'Hm_lvt_2ca328b9cae36b40ca93bceb73dd11e3':'1502890849,1503113223', 'Hm_lpvt_2ca328b9cae36b40ca93bceb73dd11e3':'1503220492', 'Hm_lvt_9a6c8fb08b4d9259f491e18208b87350':'1502890848,1503113223' , 'Hm_lpvt_9a6c8fb08b4d9259f491e18208b87350':'1503220492'}
+             headers = {'Referer':'http://www.mofangge.com/app/search/searchpoint.aspx?operate=2&subject=02&subject1=02&smenu=1&keyword=%E6%A2%AF%E5%BD%A2%E7%9A%84%E8%AE%A4%E8%AF%86&isck=88&point=0x0000050114&pno=1&order=07',
+               'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.221 Safari/537.36 SE 2.X MetaSr 1.0'}
+            
+             # requests
+             response = requests.post(url, cookies=cookies, headers=headers)
+             response.encoding = 'UTF-8'
+             
+             #BeautifulSoup
+             soup = BeautifulSoup(response.content, 'html.parser')
+                   
+             #分模块读取网页内容q_mokuai_2
+             mokuai_2 = soup.select('#q_indexkuai22111')
+             diff = re.search('难度：'+'(.*)'+'来源',str(mokuai_2[0].text)) 
+             question_data['diff'] = diff.group(1)
+            
+             #q_mokuai_3,读取答案的内容（可能包括解析）
+             mokuai_3 = soup.select('#q_indexkuai321 > table')
+             table_num = len(mokuai_3)
+             if table_num >= 2:
+                question_data['answer'] = str(mokuai_3[0].tr)
+                question_data['analysis'] = str(mokuai_3[1].tr)
+             elif table_num == 1:
+                question_data['answer'] = str(mokuai_3[0].tr)
+             else:
+                continue
+            
+             #q_mokuai_5,获取test_point
+             test_span = soup.select('#q_indexkuai512 span')
+             test_point = []
+             #统计span的数目，用于估计列表大小
+             span_num = len(test_span)
+             i = 1
+             for i in range(span_num):
+                 test_point.append(str(test_span[i].text))
+             question_data['test_point'] = test_point
+                
+             ##q_mokuai_5,获取point_text
+             ##简便写法
+             point_test = [''.join(map(str, tag.select('.notes')))  for tag in soup.select('.quesExtra')] 
+             question_data['point_test'] = point_test      
+            
+             #mokuai_7,相似题id
+             similar_ids = []
+             for tag in soup.select('#q_indexkuai722 table tbody tr'):
+                 tds = tag.select('td')
+                 ids = str(tds[0].text)
+                 similar_ids.append(ids)
+             question_data['similar_ids'] = similar_ids
+                          
+             #test_point的id
+             test_point_ids = []
+             for test_id in soup.select('.secinfo'):
+                 str_id = str(test_id.previous_element['id'])
+                 test_point_ids.append(str_id)
+             question_data['test_point_ids'] = test_point_ids
+                
+             
+             #汉字转码
+             js_question_data = json.dumps(question_data,ensure_ascii=False)
+             print js_question_data
+
+             #写入文件
+             filename  = 'Question_5'
+             with open('C:/'+ filename,'a') as f:
+                 f.write(js_question_data)
+                 f.write('\n')
+                 a += 1
+            
+         except Exception as e:
+              print e
+              filename = 'Question_Error5'
+              with open( 'C:/'+ filename ,'a' ) as f:
+                     f.write(str(e))
+                     f.write('\n')
+                     f.write(str(url))
+                     f.write('\n') 
+              continue
+                 
+
+            
